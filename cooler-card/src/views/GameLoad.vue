@@ -7,19 +7,7 @@
             <div class="content">
                 <div class="main">
                     <div>
-                        <p>Join a game</p>
-                        <input class="code-input" type="text" placeholder="code" />
-                        <input class="game-btn" type="button" value="Join" @click="joinGame" />
-                    </div>
-                    <div>
-                        <p>
-                            OR
-                        </p>
-                    </div>
-                    <div>
-                        <p>Start a game</p>
-                        <input class="code-input" type="text" placeholder="name" />
-                        <input class="game-btn" type="button" value="New Game" @click="newGame" />
+                        <p>Loading...</p>
                     </div>
                 </div>
             </div>
@@ -33,17 +21,12 @@
 <script>
 
     export default {
-        name: 'Home',
+        name: 'GameLoad',
         data: () => ({}),
-        methods: {
-            joinGame() {
-                console.log('join-game');
-                this.$router.push('/loading');
-            },
-            newGame() {
-                console.log('new-game');
-                this.$router.push('/loading');
-            }
+        mounted() {
+            setTimeout(() => {
+                this.$router.push('/game');
+            }, 3000);
         }
     }
 </script>
@@ -148,5 +131,4 @@
         text-decoration: none;
         color: red;
     }
-
 </style>
