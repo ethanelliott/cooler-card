@@ -8,15 +8,15 @@
                 <transition name="card" mode="out-in">
                     <div class="card-wrapper" :key="card2Image">
                         <div class="card-container">
-                            <div class="card">
-                                <img :src="card1Image" />
+                            <div class="card link" @click="vote(1)">
+                                <img :class="voted1 ? 'selected' : ''" :src="card1Image"/>
                                 <p>{{ name1 }}</p>
                             </div>
                             <div class="card">
                                 <p>VS</p>
                             </div>
-                            <div class="card">
-                                <img :src="card2Image" />
+                            <div class="card link" @click="vote(2)">
+                                <img :class="voted2 ? 'selected' : ''" :src="card2Image"/>
                                 <p>{{ name2 }}</p>
                             </div>
                         </div>
@@ -25,8 +25,11 @@
                 </transition>
             </div>
             <div class="footer">
-                <button class="next-btn" @click="drawCards">
+                <button v-if="admin" class="next-btn" @click="drawCards">
                     Duel
+                </button>
+                <button class="next-btn" :disabled="!voted1 || !voted2" @click="submitVote">
+                    Submit Vote
                 </button>
             </div>
         </div>
@@ -40,40 +43,102 @@
                 </ol>
             </div>
         </div>
+        <div class="leave-container" @click="leave">
+            Leave Game
+        </div>
+        <div class="code-container">
+            {{ code }}
+        </div>
     </div>
 </template>
 
 <script>
-    import axios from 'axios';
+    import io from "socket.io-client";
 
-    const RANDOM_CARD_URL = 'https://db.ygoprodeck.com/api/v7/randomcard.php';
 
     export default {
         name: 'Game',
         data: () => ({
+            admin: false,
             card1Image: '',
             card2Image: '',
             name1: '',
             name2: '',
-            allUsers: [
-                // {name: 'Name', score: 0},
-            ]
+            allUsers: [],
+            code: '',
+            voted1: false,
+            voted2: false
         }),
         computed: {
             users() {
                 const u = [...this.allUsers];
                 return u.sort((a, b) => a.score - b.score);
+            },
+            token() {
+                return localStorage.getItem('token');
             }
         },
         mounted() {
-            this.drawCards();
+            this.socket = io(this.$socketURL);
+            this.socket.on('connect', () => {
+                console.log('connected!');
+                this.socket.emit('bind-events', {token: this.token});
+                this.socket.emit('admin-check', {
+                    token: this.token
+                });
+                this.socket.emit('get-code', {
+                    token: this.token
+                });
+                this.socket.emit('get-users', {
+                    token: this.token
+                });
+            });
+            this.socket.on('admin', (isAdmin) => {
+                this.admin = isAdmin;
+            });
+            this.socket.on('code', (code) => {
+                this.code = code;
+            });
+            this.socket.on('users', (users) => {
+                this.allUsers = users;
+            });
+            this.socket.on('leave', () => {
+                this.leave();
+            });
+            this.socket.on('duel', (data) => {
+                this.voted1 = false;
+                this.voted2 = false;
+                this.card1Image = data.card1.url;
+                this.card2Image = data.card2.url;
+                this.name1 = data.card1.user.name;
+                this.name2 = data.card2.user.name;
+            });
+        },
+        beforeDestroy() {
+            this.socket.close();
         },
         methods: {
             async drawCards() {
-                const res1 = await axios.get(RANDOM_CARD_URL);
-                const res2 = await axios.get(RANDOM_CARD_URL);
-                this.card1Image = res1.data.card_images[0].image_url;
-                this.card2Image = res2.data.card_images[0].image_url;
+                this.socket.emit('d-d-d-duel', {token: this.token});
+            },
+            leave() {
+                this.socket.emit('leaving', {
+                    token: this.token
+                })
+                localStorage.removeItem('token');
+                this.$router.push('/');
+            },
+            submitVote() {
+                this.socket.emit('vote', {token: this.token, number: (this.voted1 ? 1 : 2)});
+            },
+            vote(number) {
+                this.voted1 = false;
+                this.voted2 = false;
+                if (number === 1) {
+                    this.voted1 = true;
+                } else {
+                    this.voted2 = true;
+                }
             }
         }
     }
@@ -129,9 +194,12 @@
         display: flex;
         justify-content: center;
         align-items: center;
+        flex-direction: row !important;
     }
 
     .next-btn {
+        margin-left: 1em;
+        margin-right: 1em;
         padding: 0.5em 1em 0.5em 1em;
         border-radius: 10%;
         background: black;
@@ -140,14 +208,14 @@
         outline: none;
         border: none;
         font-size: 30px;
-        box-shadow: 0 0 10px 1px rgba(0,0,0,0.5);
+        box-shadow: 0 0 10px 1px rgba(0, 0, 0, 0.5);
         transition: all 0.5s;
         text-transform: uppercase;
     }
 
     .next-btn:hover {
         cursor: pointer;
-        box-shadow: 0 0 10px 1px rgba(0,0,0,0.3);
+        box-shadow: 0 0 10px 1px rgba(0, 0, 0, 0.3);
     }
 
     .card-wrapper {
@@ -175,12 +243,21 @@
         flex-direction: column;
     }
 
+    .card.link:hover {
+        cursor: pointer;
+    }
+
     .card > img {
         margin-left: 2em;
         margin-right: 2em;
         height: 100%;
         max-height: 50vh;
-        box-shadow: 0 0 20px 2px rgba(0,0,0,0.6);
+        box-shadow: 0 0 20px 2px rgba(0, 0, 0, 0.6);
+        transition: all 0.3s;
+    }
+
+    .selected {
+        outline: red solid 10px;
     }
 
     .card > p {
@@ -208,6 +285,42 @@
         flex-direction: column;
         justify-content: flex-start;
         align-items: flex-start;
+    }
+
+    .code-container {
+        position: fixed;
+        right: 0;
+        top: 0;
+        background: black;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        padding: 0.25em 0.5em 0.25em 0.5em;
+        font-size: 50px;
+        letter-spacing: 5px;
+        box-shadow: 0 0 20px 2px rgba(0, 0, 0, 0.6);
+    }
+
+    .leave-container {
+        position: fixed;
+        left: 0;
+        top: 0;
+        background: black;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        padding: 0.25em 0.5em 0.25em 0.5em;
+        font-size: 20px;
+        letter-spacing: 5px;
+        box-shadow: 0 0 20px 2px rgba(0, 0, 0, 0.6);
+    }
+
+    .leave-container:hover {
+        cursor: pointer;
     }
 
     .card-enter-active,

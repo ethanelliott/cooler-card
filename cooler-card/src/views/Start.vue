@@ -7,52 +7,37 @@
             <div class="content">
                 <div class="main">
                     <div>
-                        <p>Join a game</p>
-                        <input class="game-btn" type="button" value="Join Game" @click="joinGame" />
-                    </div>
-                    <div>
-                        <p>Spectate a game</p>
-                        <input class="game-btn" type="button" value="Spectate Game" @click="spectateGame" />
-                    </div>
-                    <div>
-                        <p>Start a game</p>
-                        <input class="game-btn" type="button" value="New Game" @click="newGame" />
+                        <p>Loading...</p>
                     </div>
                 </div>
             </div>
             <div class="footer">
-                <p class="copyright">Made with ❤ by <a href="https://github.com/ethanelliott/">Ethan</a></p>
-                <p class="copyright">BOYS SUPPORT BOYS</p>
             </div>
         </div>
     </div>
 </template>
 
 <script>
+    import axios from 'axios';
+
     export default {
-        name: 'Home',
-        data: () => ({
-        }),
-        computed: {
-            token() {
-                return localStorage.getItem('token');
-            }
-        },
+        props: ['token'],
+        name: 'GameLoad',
+        data: () => ({}),
         mounted() {
-            if (this.token) {
-                this.$router.push('/game');
-            }
-        },
-        methods: {
-            joinGame() {
-                this.$router.push('/join');
-            },
-            spectateGame() {
-                this.$router.push('/spectate');
-            },
-            newGame() {
-                this.$router.push('/create');
-            }
+            axios.post('/mate', {
+                token: this.token
+            }).then(({data}) => {
+                // new token linking the user to the party, and giving the user an id
+                if (data.error) {
+                    this.$router.push('/');
+                } else if (data.token) {
+                    localStorage.setItem('token', data.token);
+                    setTimeout(() => {
+                        this.$router.push('/game');
+                    }, 3000);
+                }
+            }).catch(console.error);
         }
     }
 </script>
@@ -82,8 +67,7 @@
     .title {
         text-transform: uppercase;
         letter-spacing: 3px;
-        font-size: 60px;
-        margin-top: 3vh;
+        font-size: 50px;
     }
 
     .header {
@@ -118,6 +102,7 @@
         align-items: center;
         flex-direction: column;
     }
+
     .main > * > * {
         margin-top: 1em;
         margin-bottom: 1em;
@@ -148,29 +133,14 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        flex-direction: column;
     }
 
     .copyright {
         font-size: 14px;
-        margin-top: 1em;
     }
 
     .copyright > a {
         text-decoration: none;
-        color: red;
-    }
-
-    .hint {
-        font-size: 14px;
-        font-family: monospace;
-        font-weight: bold;
-    }
-
-    .error {
-        font-size: 14px;
-        font-family: monospace;
-        font-weight: bold;
         color: red;
     }
 </style>

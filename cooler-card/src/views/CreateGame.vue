@@ -7,15 +7,12 @@
             <div class="content">
                 <div class="main">
                     <div>
-                        <p>Join a game</p>
-                        <input class="game-btn" type="button" value="Join Game" @click="joinGame" />
-                    </div>
-                    <div>
-                        <p>Spectate a game</p>
-                        <input class="game-btn" type="button" value="Spectate Game" @click="spectateGame" />
-                    </div>
-                    <div>
                         <p>Start a game</p>
+                        <p class="error">{{ startError }}</p>
+                        <input v-model="name" class="code-input" type="text" placeholder="game name" />
+                        <input v-model="nickname" class="code-input" type="text" placeholder="your nickname" />
+                        <input v-model="password" class="code-input" type="password" placeholder="game password" />
+                        <p class="hint">password helps keeps your<br> card game secure</p>
                         <input class="game-btn" type="button" value="New Game" @click="newGame" />
                     </div>
                 </div>
@@ -29,29 +26,31 @@
 </template>
 
 <script>
+    import axios from 'axios';
+    import sha256 from 'sha256';
+
     export default {
         name: 'Home',
         data: () => ({
+            code: '',
+            name: '',
+            nickname: '',
+            password: '',
+            startError: '',
         }),
-        computed: {
-            token() {
-                return localStorage.getItem('token');
-            }
-        },
-        mounted() {
-            if (this.token) {
-                this.$router.push('/game');
-            }
-        },
         methods: {
-            joinGame() {
-                this.$router.push('/join');
-            },
-            spectateGame() {
-                this.$router.push('/spectate');
-            },
             newGame() {
-                this.$router.push('/create');
+                axios.post('/new', {
+                    name: this.name,
+                    nickname: this.nickname,
+                    password: sha256(this.password)
+                }).then(({data}) => {
+                    if (data.error) {
+                        this.startError = data.error;
+                    } else if (data.token) {
+                        this.$router.push(`/start/${data.token}`);
+                    }
+                }).catch(console.error);
             }
         }
     }

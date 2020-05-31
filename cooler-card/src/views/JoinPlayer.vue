@@ -8,15 +8,11 @@
                 <div class="main">
                     <div>
                         <p>Join a game</p>
-                        <input class="game-btn" type="button" value="Join Game" @click="joinGame" />
-                    </div>
-                    <div>
-                        <p>Spectate a game</p>
-                        <input class="game-btn" type="button" value="Spectate Game" @click="spectateGame" />
-                    </div>
-                    <div>
-                        <p>Start a game</p>
-                        <input class="game-btn" type="button" value="New Game" @click="newGame" />
+                        <p class="error">{{ joinError }}</p>
+                        <input v-model="code" class="code-input" type="text" placeholder="code" />
+                        <input v-model="name" class="code-input" type="text" placeholder="nickname" />
+                        <input v-model="joinPassword" class="code-input" type="password" placeholder="game password" />
+                        <input class="game-btn" type="button" value="Join" @click="joinGame" />
                     </div>
                 </div>
             </div>
@@ -29,29 +25,31 @@
 </template>
 
 <script>
+    import axios from 'axios';
+    import sha256 from 'sha256';
+
     export default {
         name: 'Home',
         data: () => ({
+            code: '',
+            name: '',
+            joinPassword: '',
+            joinError: ''
         }),
-        computed: {
-            token() {
-                return localStorage.getItem('token');
-            }
-        },
-        mounted() {
-            if (this.token) {
-                this.$router.push('/game');
-            }
-        },
         methods: {
             joinGame() {
-                this.$router.push('/join');
-            },
-            spectateGame() {
-                this.$router.push('/spectate');
-            },
-            newGame() {
-                this.$router.push('/create');
+                axios.post('/join', {
+                    code: this.code.toUpperCase(),
+                    nickname: this.name,
+                    password: sha256(this.joinPassword)
+                }).then(({data}) => {
+                    if (data.error) {
+                        console.error(data.error);
+                        this.joinError = data.error;
+                    } else if(data.token) {
+                        this.$router.push(`/start/${data.token}`);
+                    }
+                }).catch(console.error);
             }
         }
     }
